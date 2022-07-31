@@ -39,6 +39,15 @@ void DungeonGenerator::RenderGizmos() const
 
 			Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(corners, true, glm::vec4(0.3f, 0.6f, 0.9f, 1.0f), 1.0f);
 		}
+
+		std::vector<glm::vec2> corners = {
+				glm::vec2(room.bounds.pos.x - 0.5f, room.bounds.pos.y - 0.5f),
+				glm::vec2(room.bounds.pos.x + room.bounds.size.x - 0.5f, room.bounds.pos.y - 0.5f),
+				glm::vec2(room.bounds.pos.x + room.bounds.size.x - 0.5f, room.bounds.pos.y + room.bounds.size.y - 0.5f),
+				glm::vec2(room.bounds.pos.x - 0.5f, room.bounds.pos.y + room.bounds.size.y - 0.5f)
+		};
+
+		Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(corners, true, glm::vec4(0.3f, 0.6f, 0.9f, 1.0f), 1.0f);
 	}
 }
 
@@ -52,11 +61,13 @@ void DungeonGenerator::GenerateDungeon()
 	for (int i = 0; i < m_roomAmount; i++)
 	{
 		Room room = GenerateRoom();
+		SetRoomPosition(room);
 
 		m_rooms.push_back(room);
 	}
 
 	// Generate Connections
+
 
 	// Draw to tilemap
 	DrawDungeon();
@@ -155,7 +166,70 @@ DungeonGenerator::Room DungeonGenerator::GenerateRoom() const
 		room.rects.push_back(addRect);
 	}
 
+	// Bounds
+	room.bounds = GetRoomBounds(room);
+
 	return room;
+}
+
+void DungeonGenerator::SetRoomPosition(Room& room)
+{
+	const glm::ivec2 offset = room.bounds.pos;
+
+	if (m_rooms.empty())
+		return;
+
+	do
+	{
+		// choose random room to connect to
+		Room& roomToConnectTo = m_rooms[rand() % m_rooms.size()];
+		const Rect roomToConnectToBounds = GetRoomBounds(roomToConnectTo);
+
+		// choose random side to connect to
+		int side = rand() % 4;
+
+		switch (side)
+		{
+			case 0:
+			{
+				// top
+				room.bounds.pos = glm::ivec2(
+					roomToConnectToBounds.pos.x + rand() % (roomToConnectToBounds.size.x + room.bounds.size.x - 1) - room.bounds.size.x + 1,
+					roomToConnectToBounds.pos.y + roomToConnectToBounds.size.y + m_minHoleSize.y);
+				break;
+			}
+			case 1:
+			{
+				// right
+				room.bounds.pos = glm::ivec2(
+					roomToConnectToBounds.pos.x + roomToConnectToBounds.size.x + m_minHoleSize.x,
+					roomToConnectToBounds.pos.y + rand() % (roomToConnectToBounds.size.y + room.bounds.size.y - 1) - room.bounds.size.y + 1);
+				break;
+			}
+			case 2:
+			{
+				// bottom
+				room.bounds.pos = glm::ivec2(
+					roomToConnectToBounds.pos.x + rand() % (roomToConnectToBounds.size.x + room.bounds.size.x - 1) - room.bounds.size.x + 1,
+					roomToConnectToBounds.pos.y - room.bounds.size.y - m_minHoleSize.y);
+				break;
+			}
+			case 3:
+			{
+				// left
+				room.bounds.pos = glm::ivec2(
+					roomToConnectToBounds.pos.x - room.bounds.size.x - m_minHoleSize.x,
+					roomToConnectToBounds.pos.y + rand() % (roomToConnectToBounds.size.y + room.bounds.size.y - 1) - room.bounds.size.y + 1);
+				break;
+			}
+		}
+
+	} while (!CanAddRoomToDungeon(room.bounds));
+
+	for (auto& rect : room.rects)
+	{
+		rect.pos += room.bounds.pos - offset;
+	}
 }
 
 bool DungeonGenerator::CanAddRectToRoom(const Room& room, const Rect& rect) const
@@ -172,6 +246,20 @@ bool DungeonGenerator::CanAddRectToRoom(const Room& room, const Rect& rect) cons
 		if (dist2.x <= 0 && dist2.y <= 0)
 			continue;
 
+		// gap too small
+		if (dist2.x < m_minHoleSize.x && dist2.y < m_minHoleSize.y)
+			return false;
+	}
+
+	return true;
+}
+
+bool DungeonGenerator::CanAddRoomToDungeon(const Rect& bounds) const
+{
+	for (const auto& room : m_rooms)
+	{
+		const auto dist2 = DistanceBetweenRects(bounds, room.bounds);
+		
 		// gap too small
 		if (dist2.x < m_minHoleSize.x && dist2.y < m_minHoleSize.y)
 			return false;
@@ -429,13 +517,51 @@ void DungeonGenerator::DrawDungeon() const
 	}
 }
 
-glm::ivec2 DungeonGenerator::DistanceBetweenRects(const Rect& r1, const Rect& r2) const
+glm::ivec2 DungeonGenerator::DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const
 {
 	// union of rects
 	Rect unionRect;
-	unionRect.pos = glm::ivec2(std::min(r1.pos.x, r2.pos.x), std::min(r1.pos.y, r2.pos.y));
-	unionRect.size = glm::ivec2(std::max(r1.pos.x + r1.size.x, r2.pos.x + r2.size.x) - unionRect.pos.x,
-		std::max(r1.pos.y + r1.size.y, r2.pos.y + r2.size.y) - unionRect.pos.y);
+	unionRect.pos = glm::ivec2(std::min(rect1.pos.x, rect2.pos.x), std::min(rect1.pos.y, rect2.pos.y));
+	unionRect.size = glm::ivec2(std::max(rect1.pos.x + rect1.size.x, rect2.pos.x + rect2.size.x) - unionRect.pos.x,
+		std::max(rect1.pos.y + rect1.size.y, rect2.pos.y + rect2.size.y) - unionRect.pos.y);
 
-	return unionRect.size - r1.size - r2.size;
+	return unionRect.size - rect1.size - rect2.size;
+}
+
+glm::ivec2 DungeonGenerator::DistanceBetweenRooms(const Room& room1, const Room& room2) const
+{
+	// set distance to max
+	glm::ivec2 distance = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+
+	// find closest x and y of all distances between rects
+	for (const auto& rect1 : room1.rects)
+	{
+		for (const auto& rect2 : room2.rects)
+		{
+			glm::ivec2 rectDistance = DistanceBetweenRects(rect1, rect2);
+			distance.x = std::min(distance.x, rectDistance.x);
+			distance.y = std::min(distance.y, rectDistance.y);
+		}
+	}
+
+	return distance;
+}
+
+DungeonGenerator::Rect DungeonGenerator::GetRoomBounds(const Room& room)
+{
+	glm::ivec2 min = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+	glm::ivec2 max = { std::numeric_limits<int>::min(), std::numeric_limits<int>::min() };
+
+	for (const auto& rect : room.rects)
+	{
+		min.x = std::min(min.x, rect.pos.x);
+		min.y = std::min(min.y, rect.pos.y);
+		max.x = std::max(max.x, rect.pos.x + rect.size.x);
+		max.y = std::max(max.y, rect.pos.y + rect.size.y);
+	}
+
+	Rect bounds;
+	bounds.pos = min;
+	bounds.size = max - bounds.pos;
+	return bounds;
 }

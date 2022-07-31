@@ -26,7 +26,7 @@ void Game::LoadGame() const
 		#pragma region Camera
 
 		const auto cameraObject = pScene->CreateChildObject("Camera");
-		const auto camera = cameraObject->CreateComponent<Mage::CameraComponent>(glm::vec2{ 50.f, 50.f });
+		const auto camera = cameraObject->CreateComponent<Mage::CameraComponent>(glm::vec2{ 75.f, 75.f });
 		Mage::ServiceLocator::GetRenderer()->SetCamera(camera);
 		Mage::ServiceLocator::GetRenderer()->SetBackgroundColor({ 118, 59, 54, 255 });
 
