@@ -14,6 +14,8 @@ public:
 	void Update() override;
 	void RenderGizmos() const override;
 
+	void GenerateDungeon();
+
 private:
 	struct Rect
 	{
@@ -27,8 +29,8 @@ private:
 		Rect bounds{};
 		int parent{ -1 };
 	};
-
-	void GenerateDungeon();
+	
+	void ClearDungeon();
 	void GenerateRoom();
 	void SetRoomPosition(Room& room) const;
 	bool CanAddRectToRoom(const Room& room, const Rect& rect) const;
@@ -45,8 +47,7 @@ private:
 	const int m_maxRoomRectSize{ 6 };
 	const int m_minRoomRects{ 2 };
 	const int m_maxRoomRects{ 5 };
-	const bool m_roomRectsCanOverlap{ false };
-	const glm::ivec2 m_minHoleSize{ 2, 3 };
+	const glm::ivec2 m_minWallSize{ 2, 3 };
 
 	std::vector<Room> m_rooms{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
