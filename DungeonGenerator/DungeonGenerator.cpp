@@ -4,6 +4,8 @@
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/hash.hpp>
 
+#include <chrono>
+
 #include <map>
 #include <Mage/Components/TilemapComponent.h>
 #include <Mage/Engine/ServiceLocator.h>
@@ -28,6 +30,7 @@ void DungeonGenerator::RenderGizmos() const
 {
 	for (const auto& room : m_rooms)
 	{
+		// Component Rects
 		for (const auto& rect : room.rects)
 		{
 			std::vector<glm::vec2> corners = {
@@ -40,6 +43,7 @@ void DungeonGenerator::RenderGizmos() const
 			Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(corners, true, glm::vec4(0.3f, 0.6f, 0.9f, 1.0f), 1.0f);
 		}
 
+		// Bounds
 		std::vector<glm::vec2> corners = {
 				glm::vec2(room.bounds.pos.x - 0.5f, room.bounds.pos.y - 0.5f),
 				glm::vec2(room.bounds.pos.x + room.bounds.size.x - 0.5f, room.bounds.pos.y - 0.5f),
@@ -47,33 +51,50 @@ void DungeonGenerator::RenderGizmos() const
 				glm::vec2(room.bounds.pos.x - 0.5f, room.bounds.pos.y + room.bounds.size.y - 0.5f)
 		};
 
-		Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(corners, true, glm::vec4(0.3f, 0.6f, 0.9f, 1.0f), 1.0f);
+		Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(corners, true, glm::vec4(1.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+
+		// Connection to parent
+		if (room.parent != -1)
+		{
+			std::vector<glm::vec2> points = {
+				glm::vec2(room.bounds.pos) + glm::vec2(room.bounds.size) / 2.0f,
+				glm::vec2(m_rooms[room.parent].bounds.pos) + glm::vec2(m_rooms[room.parent].bounds.size) / 2.0f
+			};
+
+			Mage::ServiceLocator::GetRenderer()->RenderPolygonOutline(points, false, glm::vec4(0.f, 1.f, 0.f, 1.0f), 1.0f);
+		}
 	}
 }
 
 void DungeonGenerator::GenerateDungeon()
 {
+	const auto start = std::chrono::high_resolution_clock::now();
+
 	// Clear previous
 	m_rooms.clear();
+	m_floorTiles.clear();
 	m_pTilemap->EraseAll();
 
 	// Generate Rooms
 	for (int i = 0; i < m_roomAmount; i++)
 	{
-		Room room = GenerateRoom();
-		SetRoomPosition(room);
-
-		m_rooms.push_back(room);
+		GenerateRoom();
 	}
 
 	// Generate Connections
-
+	for (const auto& room : m_rooms)
+	{
+		GenerateConnectionToParent(room);
+	}
 
 	// Draw to tilemap
 	DrawDungeon();
+
+	const auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "Generation time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
 }
 
-DungeonGenerator::Room DungeonGenerator::GenerateRoom() const
+void DungeonGenerator::GenerateRoom()
 {
 	Room room;
 
@@ -81,8 +102,8 @@ DungeonGenerator::Room DungeonGenerator::GenerateRoom() const
 	room.rects.push_back({
 		glm::vec2(0, 0),
 		glm::vec2(
-			rand() % (m_maxRoomRectSize - m_minRoomRectSize) + 1 + m_minRoomRectSize,
-			rand() % (m_maxRoomRectSize - m_minRoomRectSize) + 1 + m_minRoomRectSize)
+			rand() % (m_maxRoomRectSize - m_minRoomRectSize + 1) + m_minRoomRectSize,
+			rand() % (m_maxRoomRectSize - m_minRoomRectSize + 1) + m_minRoomRectSize)
 	});
 
 	// Additional rectangles
@@ -169,21 +190,37 @@ DungeonGenerator::Room DungeonGenerator::GenerateRoom() const
 	// Bounds
 	room.bounds = GetRoomBounds(room);
 
-	return room;
+	// Position
+	SetRoomPosition(room);
+
+	// Add floor tiles
+	for (const auto& rect : room.rects)
+	{
+		for (int x = rect.pos.x; x < rect.pos.x + rect.size.x; x++)
+		{
+			for (int y = rect.pos.y; y < rect.pos.y + rect.size.y; y++)
+			{
+				m_floorTiles.emplace(glm::ivec2(x, y));
+			}
+		}
+	}
+
+	m_rooms.push_back(room);
 }
 
-void DungeonGenerator::SetRoomPosition(Room& room)
+void DungeonGenerator::SetRoomPosition(Room& room) const
 {
 	const glm::ivec2 offset = room.bounds.pos;
 
 	if (m_rooms.empty())
 		return;
-
+	
 	do
 	{
 		// choose random room to connect to
-		Room& roomToConnectTo = m_rooms[rand() % m_rooms.size()];
-		const Rect roomToConnectToBounds = GetRoomBounds(roomToConnectTo);
+		const int roomToConnectTo = rand() % m_rooms.size();
+		const Rect roomToConnectToBounds = GetRoomBounds(m_rooms[roomToConnectTo]);
+		room.parent = roomToConnectTo;
 
 		// choose random side to connect to
 		int side = rand() % 4;
@@ -268,6 +305,178 @@ bool DungeonGenerator::CanAddRoomToDungeon(const Rect& bounds) const
 	return true;
 }
 
+void DungeonGenerator::GenerateConnectionToParent(const Room& room)
+{
+	if (room.parent == -1)
+		return;
+
+	// Determine direction to parent
+	glm::ivec2 dir;
+
+	if (room.bounds.pos.x + room.bounds.size.x < m_rooms[room.parent].bounds.pos.x)
+	{
+		// parent to right
+		dir = glm::ivec2(1, 0);
+	}
+	else if (room.bounds.pos.x > m_rooms[room.parent].bounds.pos.x + m_rooms[room.parent].bounds.size.x)
+	{
+		// parent to left
+		dir = glm::ivec2(-1, 0);
+	}
+	else if (room.bounds.pos.y + room.bounds.size.y < m_rooms[room.parent].bounds.pos.y)
+	{
+		// parent to top
+		dir = glm::ivec2(0, 1);
+	}
+	else if (room.bounds.pos.y > m_rooms[room.parent].bounds.pos.y + m_rooms[room.parent].bounds.size.y)
+	{
+		// parent to bottom
+		dir = glm::ivec2(0, -1);
+	}
+
+	// Determine two closest rects
+	int closestDist = std::numeric_limits<int>::max();
+	Rect closestOwnRect = {};
+	Rect closestParentRect = {};
+
+	for (int i = 0; i < room.rects.size(); ++i)
+	{
+		for (int j = 0; j < m_rooms[room.parent].rects.size(); ++j)
+		{
+			const auto dist = DistanceBetweenRects(room.rects[i], m_rooms[room.parent].rects[j]);
+
+			if (dist.x < 0 && dist.y < closestDist)
+			{
+				closestDist = dist.y;
+				closestOwnRect = room.rects[i];
+				closestParentRect = m_rooms[room.parent].rects[j];
+			}
+			if (dist.y < 0 && dist.x < closestDist)
+			{
+				closestDist = dist.x;
+				closestOwnRect = room.rects[i];
+				closestParentRect = m_rooms[room.parent].rects[j];
+			}
+		}
+	}
+
+	// Choose random x or y pos to place corridor between rects
+	if (dir.x == 0)
+	{
+		const int minX = std::max(closestOwnRect.pos.x, closestParentRect.pos.x);
+		const int maxX = std::min(closestOwnRect.pos.x + closestOwnRect.size.x, closestParentRect.pos.x + closestParentRect.size.x);
+
+		int xpos = minX + rand() % (maxX - minX);
+
+		// Add corridor
+		if (dir.y == 1)
+		{
+			for (int y = closestOwnRect.pos.y + closestOwnRect.size.y; y < closestParentRect.pos.y; ++y)
+			{
+				glm::ivec2 pos = glm::ivec2(xpos, y);
+				m_floorTiles.emplace(pos);
+
+				// if would make too small gap, fill with floor
+				if (m_floorTiles.find(pos + glm::ivec2(m_minHoleSize.x, 0)) != m_floorTiles.end())
+				{
+					for (int x = pos.x; x < pos.x + m_minHoleSize.x; ++x)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+				if (m_floorTiles.find(pos + glm::ivec2(-m_minHoleSize.x, 0)) != m_floorTiles.end())
+				{
+					for (int x = pos.x - m_minHoleSize.x; x < pos.x; ++x)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int y = closestOwnRect.pos.y; y >= closestParentRect.pos.y + closestParentRect.size.y; --y)
+			{
+				glm::ivec2 pos = glm::ivec2(xpos, y);
+				m_floorTiles.emplace(pos);
+
+				// if would make too small gap, fill with floor
+				if (m_floorTiles.find(pos + glm::ivec2(m_minHoleSize.x, 0)) != m_floorTiles.end())
+				{
+					for (int x = pos.x; x < pos.x + m_minHoleSize.x; ++x)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+				if (m_floorTiles.find(pos + glm::ivec2(-m_minHoleSize.x, 0)) != m_floorTiles.end())
+				{
+					for (int x = pos.x - m_minHoleSize.x; x < pos.x; ++x)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+			}
+		}
+	}
+	else if (dir.y == 0)
+	{
+		const int minY = std::max(closestOwnRect.pos.y, closestParentRect.pos.y);
+		const int maxY = std::min(closestOwnRect.pos.y + closestOwnRect.size.y, closestParentRect.pos.y + closestParentRect.size.y);
+
+		int ypos = minY + rand() % (maxY - minY);
+
+		// Add corridor
+		if (dir.x == 1)
+		{
+			for (int x = closestOwnRect.pos.x + closestOwnRect.size.x; x < closestParentRect.pos.x; ++x)
+			{
+				glm::ivec2 pos = glm::ivec2(x, ypos);
+				m_floorTiles.emplace(pos);
+
+				// if would make too small gap, fill with floor
+				if (m_floorTiles.find(pos + glm::ivec2(0, m_minHoleSize.y)) != m_floorTiles.end())
+				{
+					for (int y = pos.y; y < pos.y + m_minHoleSize.y; ++y)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+				if (m_floorTiles.find(pos + glm::ivec2(0, -m_minHoleSize.y)) != m_floorTiles.end())
+				{
+					for (int y = pos.y - m_minHoleSize.y; y < pos.y; ++y)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+			}
+		}
+		else
+		{
+			for (int x = closestOwnRect.pos.x; x >= closestParentRect.pos.x + closestParentRect.size.x; --x)
+			{
+				glm::ivec2 pos = glm::ivec2(x, ypos);
+				m_floorTiles.emplace(pos);
+
+				// if would make too small gap, fill with floor
+				if (m_floorTiles.find(pos + glm::ivec2(0, m_minHoleSize.y)) != m_floorTiles.end())
+				{
+					for (int y = pos.y; y < pos.y + m_minHoleSize.y; ++y)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+				if (m_floorTiles.find(pos + glm::ivec2(0, -m_minHoleSize.y)) != m_floorTiles.end())
+				{
+					for (int y = pos.y - m_minHoleSize.y; y < pos.y; ++y)
+					{
+						m_floorTiles.emplace(glm::ivec2(x, y));
+					}
+				}
+			}
+		}
+	}
+}
+
 void DungeonGenerator::DrawDungeon() const
 {
 	// TILES
@@ -307,18 +516,9 @@ void DungeonGenerator::DrawDungeon() const
 	std::unordered_map<glm::ivec2, TileType> tiles{};
 
 	// Get all floor tiles
-	for (const Room& room : m_rooms)
+	for (const auto& pos : m_floorTiles)
 	{
-		for (const Rect& rect : room.rects)
-		{
-			for (int x = rect.pos.x; x < rect.pos.x + rect.size.x; x++)
-			{
-				for (int y = rect.pos.y; y < rect.pos.y + rect.size.y; y++)
-				{
-					tiles[glm::ivec2(x, y)] = TileType::Floor;
-				}
-			}
-		}
+		tiles[pos] = TileType::Floor;
 	}
 
 	// 1 above floor is wall
@@ -526,25 +726,6 @@ glm::ivec2 DungeonGenerator::DistanceBetweenRects(const Rect& rect1, const Rect&
 		std::max(rect1.pos.y + rect1.size.y, rect2.pos.y + rect2.size.y) - unionRect.pos.y);
 
 	return unionRect.size - rect1.size - rect2.size;
-}
-
-glm::ivec2 DungeonGenerator::DistanceBetweenRooms(const Room& room1, const Room& room2) const
-{
-	// set distance to max
-	glm::ivec2 distance = { std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
-
-	// find closest x and y of all distances between rects
-	for (const auto& rect1 : room1.rects)
-	{
-		for (const auto& rect2 : room2.rects)
-		{
-			glm::ivec2 rectDistance = DistanceBetweenRects(rect1, rect2);
-			distance.x = std::min(distance.x, rectDistance.x);
-			distance.y = std::min(distance.y, rectDistance.y);
-		}
-	}
-
-	return distance;
 }
 
 DungeonGenerator::Rect DungeonGenerator::GetRoomBounds(const Room& room)

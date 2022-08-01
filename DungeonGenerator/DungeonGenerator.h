@@ -1,4 +1,5 @@
 #pragma once
+#include <unordered_set>
 #include <Mage/Components/Component.h>
 
 namespace Mage
@@ -24,28 +25,30 @@ private:
 	{
 		std::vector<Rect> rects{};
 		Rect bounds{};
+		int parent{ -1 };
 	};
 
 	void GenerateDungeon();
-	Room GenerateRoom() const;
-	void SetRoomPosition(Room& room);
+	void GenerateRoom();
+	void SetRoomPosition(Room& room) const;
 	bool CanAddRectToRoom(const Room& room, const Rect& rect) const;
 	bool CanAddRoomToDungeon(const Rect& bounds) const;
+	void GenerateConnectionToParent(const Room& room);
 	void DrawDungeon() const;
 
 	glm::ivec2 DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const;
-	glm::ivec2 DistanceBetweenRooms(const Room& room1, const Room& room2) const;
 	static Rect GetRoomBounds(const Room& room);
 
 	// Settings
-	const int m_roomAmount{ 5 };
+	const int m_roomAmount{ 10 };
 	const int m_minRoomRectSize{ 3 };
 	const int m_maxRoomRectSize{ 6 };
-	const int m_minRoomRects{ 1 };
-	const int m_maxRoomRects{ 4 };
+	const int m_minRoomRects{ 2 };
+	const int m_maxRoomRects{ 5 };
 	const bool m_roomRectsCanOverlap{ false };
 	const glm::ivec2 m_minHoleSize{ 2, 3 };
 
 	std::vector<Room> m_rooms{};
+	std::unordered_set<glm::ivec2> m_floorTiles{};
 	Mage::TilemapComponent* m_pTilemap{};
 };
