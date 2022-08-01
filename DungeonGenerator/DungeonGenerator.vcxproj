@@ -183,6 +183,7 @@ xcopy $(ProjectDir)Data $(OutputPath)Data\ /R /Y /E</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CameraMovement.cpp" />
     <ClCompile Include="DungeonGenerator.cpp" />
     <ClCompile Include="Game.cpp" />
     <ClCompile Include="Main.cpp" />
@@ -194,6 +195,7 @@ xcopy $(ProjectDir)Data $(OutputPath)Data\ /R /Y /E</Command>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CameraMovement.h" />
     <ClInclude Include="DungeonGenerator.h" />
     <ClInclude Include="Game.h" />
     <ClInclude Include="pch.h" />

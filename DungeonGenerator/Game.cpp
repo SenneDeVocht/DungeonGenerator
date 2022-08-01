@@ -13,6 +13,7 @@
 
 #include <Mage/structs.h>
 
+#include "CameraMovement.h"
 #include "DungeonGenerator.h"
 
 void Game::LoadGame() const
@@ -27,6 +28,7 @@ void Game::LoadGame() const
 
 		const auto cameraObject = pScene->CreateChildObject("Camera");
 		const auto camera = cameraObject->CreateComponent<Mage::CameraComponent>(glm::vec2{ 75.f, 75.f });
+		cameraObject->CreateComponent<CameraMovement>();
 		Mage::ServiceLocator::GetRenderer()->SetCamera(camera);
 		Mage::ServiceLocator::GetRenderer()->SetBackgroundColor({ 118, 59, 54, 255 });
 

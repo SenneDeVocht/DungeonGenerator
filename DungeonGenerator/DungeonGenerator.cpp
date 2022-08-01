@@ -20,7 +20,7 @@ void DungeonGenerator::Update()
 {
 	const auto input = Mage::ServiceLocator::GetInputManager();
 
-	if (input->CheckKeyboardKey('D', Mage::InputState::Down))
+	if (input->CheckKeyboardKey('R', Mage::InputState::Down))
 		GenerateDungeon();
 }
 
