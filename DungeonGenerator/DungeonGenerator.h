@@ -10,7 +10,6 @@ namespace Mage
 class DungeonGenerator final : public Mage::Component
 {
 public:
-	void Initialize() override;
 	void Update() override;
 	void RenderGizmos() const override;
 
@@ -36,7 +35,6 @@ private:
 	bool CanAddRectToRoom(const Room& room, const Rect& rect) const;
 	bool CanAddRoomToDungeon(const Rect& bounds) const;
 	void GenerateConnectionToParent(const Room& room);
-	void DrawDungeon() const;
 
 	glm::ivec2 DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const;
 	static Rect GetRoomBounds(const Room& room);
@@ -51,5 +49,4 @@ private:
 
 	std::vector<Room> m_rooms{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
-	Mage::TilemapComponent* m_pTilemap{};
 };

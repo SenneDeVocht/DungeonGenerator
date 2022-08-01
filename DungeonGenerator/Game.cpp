@@ -15,6 +15,7 @@
 
 #include "CameraMovement.h"
 #include "DungeonGenerator.h"
+#include "DungeonDrawer.h"
 
 void Game::LoadGame() const
 {
@@ -42,6 +43,8 @@ void Game::LoadGame() const
 		dungeonGeneratorObject->CreateComponent<Mage::TilemapComponent>(
 			std::vector<std::shared_ptr<Mage::Texture2D>> {
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_variation_1.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_variation_2.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_insidecorner_bottomleft.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_insidecorner_topleft.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_outsidecorner.png", 16),
@@ -49,6 +52,8 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_straight_top.png", 16),
 
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_variation_1.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_variation_2.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_left.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_right.png", 16),
 
@@ -68,6 +73,7 @@ void Game::LoadGame() const
 			}
 		);
 		dungeonGeneratorObject->CreateComponent<DungeonGenerator>();
+		dungeonGeneratorObject->CreateComponent<DungeonDrawer>();
 
 		#pragma endregion
 	});
