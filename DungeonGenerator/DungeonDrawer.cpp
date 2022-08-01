@@ -18,6 +18,9 @@ void DungeonDrawer::Initialize()
 
 void DungeonDrawer::DrawDungeon(const std::unordered_set<glm::ivec2>& floorTiles) const
 {
+	// clear previous
+	m_pTilemap->EraseAll();
+
 	enum class TileType
 	{
 		Floor,
