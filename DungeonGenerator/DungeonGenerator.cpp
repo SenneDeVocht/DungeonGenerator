@@ -16,14 +16,6 @@ inline int Random(int min, int max)
 	return rand() % (max - min + 1) + min;
 }
 
-void DungeonGenerator::Update()
-{
-	const auto input = Mage::ServiceLocator::GetInputManager();
-
-	if (input->CheckKeyboardKey('R', Mage::InputState::Down))
-		GenerateDungeon();
-}
-
 void DungeonGenerator::RenderGizmos() const
 {
 	const auto renderer = Mage::ServiceLocator::GetRenderer();
@@ -69,6 +61,11 @@ void DungeonGenerator::RenderGizmos() const
 
 void DungeonGenerator::GenerateDungeon()
 {
+	const auto seed = rand();
+	srand(seed);
+	std::cout << "Seed: " << seed << std::endl;
+
+
 	const auto start = std::chrono::high_resolution_clock::now();
 
 	// Clear previous
@@ -91,6 +88,7 @@ void DungeonGenerator::GenerateDungeon()
 
 	const auto end = std::chrono::high_resolution_clock::now();
 	std::cout << "Generation time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+	std::cout << std::endl;
 }
 
 void DungeonGenerator::ClearDungeon()

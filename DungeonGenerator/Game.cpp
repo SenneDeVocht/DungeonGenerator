@@ -3,6 +3,7 @@
 
 #include <Mage/Components/CameraComponent.h>
 #include <Mage/Components/TilemapComponent.h>
+#include <Mage/Components/SpriteComponent.h>
 
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Engine/Renderer.h>
@@ -16,6 +17,8 @@
 #include "CameraMovement.h"
 #include "DungeonGenerator.h"
 #include "DungeonDrawer.h"
+#include "GameManager.h"
+#include "PlayerMovement.h"
 
 void Game::LoadGame() const
 {
@@ -23,20 +26,8 @@ void Game::LoadGame() const
 
 	Mage::SceneManager::GetInstance().RegisterScene("Test", [&](Mage::Scene* pScene)
 	{
-		// Camera
-		//-------
-		#pragma region Camera
-
-		const auto cameraObject = pScene->CreateChildObject("Camera");
-		const auto camera = cameraObject->CreateComponent<Mage::CameraComponent>(glm::vec2{ 75.f, 75.f });
-		cameraObject->CreateComponent<CameraMovement>();
-		Mage::ServiceLocator::GetRenderer()->SetCamera(camera);
-		Mage::ServiceLocator::GetRenderer()->SetBackgroundColor({ 118, 59, 54, 255 });
-
-		#pragma endregion
-
-
 		// Dungeon Generator
+		//------------------
 		#pragma region Dungeon Generator
 
 		const auto dungeonGeneratorObject = pScene->CreateChildObject("Dungeon Generator");
@@ -72,8 +63,42 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_top.png", 16)
 			}
 		);
-		dungeonGeneratorObject->CreateComponent<DungeonGenerator>();
+		const auto dungeonGenerator = dungeonGeneratorObject->CreateComponent<DungeonGenerator>();
 		dungeonGeneratorObject->CreateComponent<DungeonDrawer>();
+
+		#pragma endregion
+
+
+		// Player
+		//-------
+		#pragma region Player
+
+		const auto playerObject = pScene->CreateChildObject("Player");
+		const auto playerMovement = playerObject->CreateComponent<PlayerMovement>(dungeonGenerator);
+		playerObject->CreateComponent<Mage::SpriteComponent>(resourceManager.LoadTexture("Sprites/wizard.png", 16), 1.f);
+
+		#pragma endregion
+
+
+		// Camera
+		//-------
+		#pragma region Camera
+
+		const auto cameraObject = pScene->CreateChildObject("Camera");
+		const auto camera = cameraObject->CreateComponent<Mage::CameraComponent>(glm::vec2{ 25.f, 25.f });
+		cameraObject->CreateComponent<CameraMovement>(playerObject->GetTransform());
+		Mage::ServiceLocator::GetRenderer()->SetCamera(camera);
+		Mage::ServiceLocator::GetRenderer()->SetBackgroundColor({ 118, 59, 54, 255 });
+
+		#pragma endregion
+
+
+		// Game Manager
+		//-------------
+		#pragma region Game Manager
+
+		const auto gameManagerObject = pScene->CreateChildObject("Game Manager");
+		gameManagerObject->CreateComponent<GameManager>(dungeonGenerator, playerMovement);
 
 		#pragma endregion
 	});

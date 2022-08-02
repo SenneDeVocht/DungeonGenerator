@@ -10,10 +10,10 @@ namespace Mage
 class DungeonGenerator final : public Mage::Component
 {
 public:
-	void Update() override;
 	void RenderGizmos() const override;
 
 	void GenerateDungeon();
+	std::unordered_set<glm::ivec2>* GetFloorTiles() { return &m_floorTiles; }
 
 private:
 	struct Rect
