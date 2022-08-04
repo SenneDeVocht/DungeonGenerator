@@ -15,7 +15,7 @@ private:
 	DungeonGenerator* m_pDungeon;
 	glm::ivec2 m_position{ 0, 0 };
 
-	float m_timeBetweenMoves{ 0.15f };
+	float m_timeBetweenMoves{ 0.2f };
 	float m_timeSinceLastMove{ 0.0f };
 };
 
