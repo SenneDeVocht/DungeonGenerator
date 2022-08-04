@@ -61,11 +61,13 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_bottom.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_left.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_right.png", 16),
-				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_top.png", 16)
+				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_top.png", 16),
+
+				resourceManager.LoadTexture("Sprites/DungeonTiles/exit.png", 16),
 			}
 		);
 		const auto dungeonGenerator = dungeonGeneratorObject->CreateComponent<DungeonGenerator>();
-		dungeonGeneratorObject->CreateComponent<DungeonDrawer>();
+		const auto dungeonDrawer = dungeonGeneratorObject->CreateComponent<DungeonDrawer>();
 
 		#pragma endregion
 
@@ -99,7 +101,7 @@ void Game::LoadGame() const
 		#pragma region Game Manager
 
 		const auto gameManagerObject = pScene->CreateChildObject("Game Manager");
-		gameManagerObject->CreateComponent<GameManager>(dungeonGenerator, playerMovement);
+		gameManagerObject->CreateComponent<GameManager>(dungeonGenerator, dungeonDrawer, playerMovement);
 
 		#pragma endregion
 	});

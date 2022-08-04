@@ -2,11 +2,6 @@
 #include <unordered_set>
 #include <Mage/Components/Component.h>
 
-namespace Mage
-{
-	class TilemapComponent;
-}
-
 class DungeonGenerator final : public Mage::Component
 {
 public:
@@ -24,18 +19,31 @@ public:
 		Rect bounds{};
 	};
 
-	struct hashFunction
+	struct Connection
 	{
-		size_t operator()(const std::pair<int, int>& x) const
+		std::pair<int, int> rooms{};
+		float distance{};
+
+		bool operator==(const Connection& other) const
 		{
-			return x.first ^ x.second;
+			return rooms == other.rooms;
+		}
+	};
+
+	struct ConnectionHash
+	{
+		size_t operator()(const Connection& x) const
+		{
+			return x.rooms.first ^ x.rooms.second;
 		}
 	};
 
 	void GenerateDungeon();
-	const std::unordered_set<glm::ivec2>& GetFloorTiles() { return m_floorTiles; }
-	const std::vector<Room>& GetRooms() { return m_rooms; }
-	const std::unordered_set<std::pair<int, int>, hashFunction>& GetConnections() { return m_connections; }
+	const std::unordered_set<glm::ivec2>& GetFloorTiles() const { return m_floorTiles; }
+	const std::vector<Room>& GetRooms() const { return m_rooms; }
+	const std::unordered_set<Connection, ConnectionHash>& GetConnections() const { return m_connections; }
+	const glm::ivec2& GetStartPos() const { return m_startPos; }
+	const glm::ivec2& GetExitPos() const { return m_exitPos; }
 
 private:
 	void ClearDungeon();
@@ -43,6 +51,8 @@ private:
 	glm::ivec2 FindPositionForRoom(const Room& room) const;
 	void GenerateConnections();
 	void GenerateConnection(const Room& room1, const Room& room2);
+	void ChooseStartAndExit();
+
 	bool CanAddRectToRoom(const Room& room, const Rect& rect) const;
 	bool CanAddRoomToDungeon(const Rect& bounds) const;
 	glm::ivec2 DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const;
@@ -59,8 +69,10 @@ private:
 	const float m_extraConnectionChance{ 0.5f };
 
 	std::vector<Room> m_rooms{};
-	std::unordered_set<std::pair<int, int>, hashFunction> m_connections{};
+	std::unordered_set<Connection, ConnectionHash> m_connections{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
+	glm::ivec2 m_startPos{};
+	glm::ivec2 m_exitPos{};
 
 	bool m_isValid{ true };
 };

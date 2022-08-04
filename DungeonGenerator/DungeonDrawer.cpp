@@ -6,6 +6,8 @@
 
 #include <unordered_map>
 
+#include "DungeonGenerator.h"
+
 inline int RandomInt(int min, int max)
 {
 	return rand() % (max - min + 1) + min;
@@ -16,8 +18,11 @@ void DungeonDrawer::Initialize()
 	m_pTilemap = GetGameObject()->GetComponent<Mage::TilemapComponent>();
 }
 
-void DungeonDrawer::DrawDungeon(const std::unordered_set<glm::ivec2>& floorTiles) const
+void DungeonDrawer::DrawDungeon(const DungeonGenerator* dungeonGenerator) const
 {
+	const auto& floorTiles = dungeonGenerator->GetFloorTiles();
+	const auto& exitPos = dungeonGenerator->GetExitPos();
+
 	// clear previous
 	m_pTilemap->EraseAll();
 
@@ -79,6 +84,12 @@ void DungeonDrawer::DrawDungeon(const std::unordered_set<glm::ivec2>& floorTiles
 	{
 		const glm::ivec2& pos = pair.first;
 		const TileType& type = pair.second;
+
+		if (pos == exitPos)
+		{
+			m_pTilemap->SetTile(pos, RandomTile(m_exit));
+			continue;
+		}
 
 		switch (type)
 		{
@@ -245,7 +256,7 @@ int DungeonDrawer::RandomTile(const Tile& tile) const
 	for (const auto& option : tile.options)
 	{
 		if (rnd < option.weight)
-			return option.tile;
+			return option.index;
 
 		rnd -= option.weight;
 	}

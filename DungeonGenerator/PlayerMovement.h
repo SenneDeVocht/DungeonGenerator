@@ -10,6 +10,7 @@ public:
 	void Update() override;
 	
 	void SetPosition(glm::ivec2 position);
+	glm::ivec2 GetPosition() const { return m_position; }
 
 private:
 	DungeonGenerator* m_pDungeon;

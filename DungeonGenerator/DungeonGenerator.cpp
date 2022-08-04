@@ -6,8 +6,6 @@
 #include <Mage/Scenegraph/GameObject.h>
 #include <Mage/Engine/Renderer.h>
 
-#include "DungeonDrawer.h"
-
 inline int RandomInt(int min, int max)
 {
 	return rand() % (max - min + 1) + min;
@@ -47,8 +45,8 @@ void DungeonGenerator::RenderGizmos() const
 	// Connections
 	for (const auto& connection : m_connections)
 	{
-		int r1 = connection.first;
-		int r2 = connection.second;
+		int r1 = connection.rooms.first;
+		int r2 = connection.rooms.second;
 
 		std::vector<glm::vec2> points = {
 			glm::vec2(m_rooms[r1].bounds.pos) + glm::vec2(m_rooms[r1].bounds.size) / 2.0f - 0.5f,
@@ -82,8 +80,7 @@ void DungeonGenerator::GenerateDungeon()
 		GenerateConnections();
 	} while (!m_isValid);
 
-	// Draw to tilemap
-	GetGameObject()->GetComponent<DungeonDrawer>()->DrawDungeon(m_floorTiles);
+	ChooseStartAndExit();
 }
 
 void DungeonGenerator::ClearDungeon()
@@ -266,54 +263,12 @@ glm::ivec2 DungeonGenerator::FindPositionForRoom(const Room& room) const
 	return closestPos;
 }
 
-bool DungeonGenerator::CanAddRectToRoom(const Room& room, const Rect& rect) const
-{
-	for (const auto& r : room.rects)
-	{
-		const auto dist2 = DistanceBetweenRects(rect, r);
-
-		// overlapping
-		if (dist2.x < 0 && dist2.y < 0)
-			return false;
-
-		// touching
-		if (dist2.x <= 0 && dist2.y <= 0)
-			continue;
-
-		// gap too small
-		if (dist2.x < m_minWallSize.x && dist2.y < m_minWallSize.y)
-			return false;
-	}
-
-	return true;
-}
-
-bool DungeonGenerator::CanAddRoomToDungeon(const Rect& bounds) const
-{
-	for (const auto& room : m_rooms)
-	{
-		const auto dist2 = DistanceBetweenRects(bounds, room.bounds);
-		
-		// gap too small
-		if (dist2.x < m_minRoomDistance.x && dist2.y < m_minRoomDistance.y)
-			return false;
-	}
-
-	return true;
-}
-
 void DungeonGenerator::GenerateConnections()
 {
-	struct Edge
-	{
-		std::pair<int, int> vertices;
-		float weight;
-	};
-
-	std::vector<Edge> edges;
-
 	// Get possible connections for each room
 	// (rooms can connect to the rooms closest by)
+	std::vector<Connection> possibleConnections;
+
 	for (int i = 0; i < m_rooms.size(); i++)
 	{
 		std::vector<int> closestRooms;
@@ -351,17 +306,17 @@ void DungeonGenerator::GenerateConnections()
 		{
 			// avoid duplicates
 			const auto pos = std::find_if(
-				edges.begin(), edges.end(), 
-				[&](const Edge& e)
+				possibleConnections.begin(), possibleConnections.end(), 
+				[&](const Connection& c)
 				{
-					return e.vertices == std::make_pair(j, i);
+					return c.rooms == std::make_pair(j, i);
 				}
 			);
 
-			if (pos == edges.end())
+			if (pos == possibleConnections.end())
 			{
 				const float weight = glm::length(glm::vec2(m_rooms[i].bounds.pos) + glm::vec2(m_rooms[j].bounds.size) * 0.5f);
-				edges.emplace_back(Edge{ std::make_pair(i, j), weight });
+				possibleConnections.emplace_back(Connection{ std::make_pair(i, j), weight });
 			}
 		}
 	}
@@ -374,17 +329,17 @@ void DungeonGenerator::GenerateConnections()
 	{
 		// find closest node
 		int smallestEdge = -1;
-		float smallestWeight = FLT_MAX;
-		for (int j = 0; j < edges.size(); j++)
+		float smallestWeight = std::numeric_limits<float>::max();
+		for (int j = 0; j < possibleConnections.size(); j++)
 		{
 			// skip if both nodes visited, or both nodes not visited
-			if (visited.find(edges[j].vertices.first) != visited.end() && visited.find(edges[j].vertices.second) != visited.end() ||
-				visited.find(edges[j].vertices.first) == visited.end() && visited.find(edges[j].vertices.second) == visited.end())
+			if (visited.find(possibleConnections[j].rooms.first) != visited.end() && visited.find(possibleConnections[j].rooms.second) != visited.end() ||
+				visited.find(possibleConnections[j].rooms.first) == visited.end() && visited.find(possibleConnections[j].rooms.second) == visited.end())
 				continue;
 
-			if (edges[j].weight < smallestWeight)
+			if (possibleConnections[j].distance < smallestWeight)
 			{
-				smallestWeight = edges[j].weight;
+				smallestWeight = possibleConnections[j].distance;
 				smallestEdge = j;
 			}
 		}
@@ -399,32 +354,31 @@ void DungeonGenerator::GenerateConnections()
 
 		// add to tree, and mark visited
 		spanningTree.insert(smallestEdge);
-		visited.insert(edges[smallestEdge].vertices.first);
-		visited.insert(edges[smallestEdge].vertices.second);
+		visited.insert(possibleConnections[smallestEdge].rooms.first);
+		visited.insert(possibleConnections[smallestEdge].rooms.second);
 	}
 
 	// Add tree to connections
-	for (const int e : spanningTree)
+	for (const int c : spanningTree)
 	{
-		const auto& edge = edges[e].vertices;
-		m_connections.insert({ edge.first, edge.second });
+		m_connections.insert(possibleConnections[c]);
 	}
 
 	// Add extra connections
-	for (const Edge& e : edges)
+	for (const Connection& c : possibleConnections)
 	{
-		if (m_connections.find(e.vertices) != m_connections.end())
+		if (m_connections.find(c) != m_connections.end())
 			continue;
 
 		const float rnd = rand() / (float)RAND_MAX;
 		if (rnd < m_extraConnectionChance)
-			m_connections.insert({ e.vertices.first, e.vertices.second });
+			m_connections.insert(c);
 	}
 
 	// Connect rooms
 	for (const auto& connection : m_connections)
 	{
-		GenerateConnection(m_rooms[connection.first], m_rooms[connection.second]);
+		GenerateConnection(m_rooms[connection.rooms.first], m_rooms[connection.rooms.second]);
 	}
 }
 
@@ -449,9 +403,9 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 	Rect closestOwnRect = {};
 	Rect closestParentRect = {};
 
-	for (auto rect1 : room1.rects)
+	for (auto& rect1 : room1.rects)
 	{
-		for (auto rect2 : room2.rects)
+		for (auto& rect2 : room2.rects)
 		{
 			const auto dist = DistanceBetweenRects(rect1, rect2);
 
@@ -533,6 +487,78 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 			}
 		}
 	}
+}
+
+void DungeonGenerator::ChooseStartAndExit()
+{
+	// find furthest distance between any two rooms
+	int maxDist = 0.0f;
+	int room1 = 0;
+	int room2 = 0;
+	for (int i = 0; i < m_rooms.size(); ++i)
+	{
+		for (int j = i + 1; j < m_rooms.size(); ++j)
+		{
+			auto dist2 = DistanceBetweenRects(m_rooms[i].bounds, m_rooms[j].bounds);
+			dist2.x = std::max(dist2.x, 0);
+			dist2.y = std::max(dist2.y, 0);
+
+			const int dist = dist2.x + dist2.y;
+
+			if (dist > maxDist)
+			{
+				maxDist = dist;
+				room1 = i;
+				room2 = j;
+			}
+		}
+	}
+
+	// Choose pos in random rect of room 1 to be the start
+	const Rect& startRect = m_rooms[room1].rects[RandomInt(0, m_rooms[room1].rects.size() - 1)];
+	m_startPos = glm::ivec2(RandomInt(startRect.pos.x, startRect.pos.x + startRect.size.x - 1),
+		RandomInt(startRect.pos.y, startRect.pos.y + startRect.size.y - 1));
+
+	// Choose pos in random rect of room 2 to be the exit
+	const Rect& exitRect = m_rooms[room2].rects[RandomInt(0, m_rooms[room2].rects.size() - 1)];
+	m_exitPos = glm::ivec2(RandomInt(exitRect.pos.x, exitRect.pos.x + exitRect.size.x - 1),
+		RandomInt(exitRect.pos.y, exitRect.pos.y + exitRect.size.y - 1));
+}
+
+bool DungeonGenerator::CanAddRectToRoom(const Room& room, const Rect& rect) const
+{
+	for (const auto& r : room.rects)
+	{
+		const auto dist2 = DistanceBetweenRects(rect, r);
+
+		// overlapping
+		if (dist2.x < 0 && dist2.y < 0)
+			return false;
+
+		// touching
+		if (dist2.x <= 0 && dist2.y <= 0)
+			continue;
+
+		// gap too small
+		if (dist2.x < m_minWallSize.x && dist2.y < m_minWallSize.y)
+			return false;
+	}
+
+	return true;
+}
+
+bool DungeonGenerator::CanAddRoomToDungeon(const Rect& bounds) const
+{
+	for (const auto& room : m_rooms)
+	{
+		const auto dist2 = DistanceBetweenRects(bounds, room.bounds);
+
+		// gap too small
+		if (dist2.x < m_minRoomDistance.x && dist2.y < m_minRoomDistance.y)
+			return false;
+	}
+
+	return true;
 }
 
 glm::ivec2 DungeonGenerator::DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const
