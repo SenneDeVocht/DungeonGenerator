@@ -55,9 +55,12 @@ private:
 	const int m_minRoomRects{ 2 };
 	const int m_maxRoomRects{ 5 };
 	const glm::ivec2 m_minWallSize{ 2, 3 };
-	const glm::ivec2 m_minRoomDistance{ 3, 4 };
+	const glm::ivec2 m_minRoomDistance{ 4, 5 };
+	const float m_extraConnectionChance{ 0.5f };
 
 	std::vector<Room> m_rooms{};
 	std::unordered_set<std::pair<int, int>, hashFunction> m_connections{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
+
+	bool m_isValid{ true };
 };

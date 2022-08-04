@@ -1,8 +1,6 @@
 #include "pch.h"
 #include "DungeonGenerator.h"
 
-#include <chrono>
-
 #include <Mage/Components/TilemapComponent.h>
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Scenegraph/GameObject.h>
@@ -10,7 +8,7 @@
 
 #include "DungeonDrawer.h"
 
-inline int Random(int min, int max)
+inline int RandomInt(int min, int max)
 {
 	return rand() % (max - min + 1) + min;
 }
@@ -67,27 +65,25 @@ void DungeonGenerator::GenerateDungeon()
 	srand(seed);
 	std::cout << "Seed: " << seed << std::endl;
 
-
-	const auto start = std::chrono::high_resolution_clock::now();
-
-	// Clear previous
-	ClearDungeon();
-
-	// Generate Rooms
-	for (int i = 0; i < m_roomAmount; i++)
+	do
 	{
-		GenerateRoom();
-	}
+		std::cout << "Starting generation..." << std::endl;
 
-	// Generate Connections
-	GenerateConnections();
+		// Clear previous
+		ClearDungeon();
+
+		// Generate Rooms
+		for (int i = 0; i < m_roomAmount; i++)
+		{
+			GenerateRoom();
+		}
+
+		// Generate Connections
+		GenerateConnections();
+	} while (!m_isValid);
 
 	// Draw to tilemap
 	GetGameObject()->GetComponent<DungeonDrawer>()->DrawDungeon(m_floorTiles);
-
-	const auto end = std::chrono::high_resolution_clock::now();
-	std::cout << "Generation time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
-	std::cout << std::endl;
 }
 
 void DungeonGenerator::ClearDungeon()
@@ -95,6 +91,7 @@ void DungeonGenerator::ClearDungeon()
 	m_rooms.clear();
 	m_connections.clear();
 	m_floorTiles.clear();
+	m_isValid = true;
 }
 
 void DungeonGenerator::GenerateRoom()
@@ -105,12 +102,12 @@ void DungeonGenerator::GenerateRoom()
 	room.rects.push_back({
 		glm::vec2(0, 0),
 		glm::vec2(
-			Random(m_minRoomRectSize, m_maxRoomRectSize),
-			Random(m_minRoomRectSize, m_maxRoomRectSize))
+			RandomInt(m_minRoomRectSize, m_maxRoomRectSize),
+			RandomInt(m_minRoomRectSize, m_maxRoomRectSize))
 	});
 
 	// Additional rectangles
-	const int amountExtraRects = Random(m_minRoomRects, m_maxRoomRects) - 1;
+	const int amountExtraRects = RandomInt(m_minRoomRects, m_maxRoomRects) - 1;
 	for (int i = 0; i < amountExtraRects; i++)
 	{
 		Rect addRect;
@@ -118,14 +115,14 @@ void DungeonGenerator::GenerateRoom()
 		// keep generating rect until it can be added
 		do
 		{
-			const Rect& rectToConnectTo = room.rects[Random(0, room.rects.size() - 1)];
+			const Rect& rectToConnectTo = room.rects[RandomInt(0, room.rects.size() - 1)];
 
 			addRect.size = glm::vec2(
-				Random(m_minRoomRectSize, m_maxRoomRectSize),
-				Random(m_minRoomRectSize, m_maxRoomRectSize));
+				RandomInt(m_minRoomRectSize, m_maxRoomRectSize),
+				RandomInt(m_minRoomRectSize, m_maxRoomRectSize));
 
 			// set position so it shares a corner with root rect
-			const int corner = Random(0, 7);
+			const int corner = RandomInt(0, 7);
 			switch (corner)
 			{
 				// TOP
@@ -307,7 +304,16 @@ bool DungeonGenerator::CanAddRoomToDungeon(const Rect& bounds) const
 
 void DungeonGenerator::GenerateConnections()
 {
-	// Choose which rooms to connect
+	struct Edge
+	{
+		std::pair<int, int> vertices;
+		float weight;
+	};
+
+	std::vector<Edge> edges;
+
+	// Get possible connections for each room
+	// (rooms can connect to the rooms closest by)
 	for (int i = 0; i < m_rooms.size(); i++)
 	{
 		std::vector<int> closestRooms;
@@ -344,9 +350,75 @@ void DungeonGenerator::GenerateConnections()
 		for (int j : closestRooms)
 		{
 			// avoid duplicates
-			if (m_connections.find(std::make_pair(j, i)) == m_connections.end())
-				m_connections.emplace(std::make_pair(i, j));
+			const auto pos = std::find_if(
+				edges.begin(), edges.end(), 
+				[&](const Edge& e)
+				{
+					return e.vertices == std::make_pair(j, i);
+				}
+			);
+
+			if (pos == edges.end())
+			{
+				const float weight = glm::length(glm::vec2(m_rooms[i].bounds.pos) + glm::vec2(m_rooms[j].bounds.size) * 0.5f);
+				edges.emplace_back(Edge{ std::make_pair(i, j), weight });
+			}
 		}
+	}
+
+	// Create minimum spanning tree using Prim's algorithm
+	std::unordered_set<int> visited{ 0 };
+	std::unordered_set<int> spanningTree{};
+	
+	while (visited.size() < m_rooms.size())
+	{
+		// find closest node
+		int smallestEdge = -1;
+		float smallestWeight = FLT_MAX;
+		for (int j = 0; j < edges.size(); j++)
+		{
+			// skip if both nodes visited, or both nodes not visited
+			if (visited.find(edges[j].vertices.first) != visited.end() && visited.find(edges[j].vertices.second) != visited.end() ||
+				visited.find(edges[j].vertices.first) == visited.end() && visited.find(edges[j].vertices.second) == visited.end())
+				continue;
+
+			if (edges[j].weight < smallestWeight)
+			{
+				smallestWeight = edges[j].weight;
+				smallestEdge = j;
+			}
+		}
+
+		// no edge found, but not all nodes visited
+		// this will probably never happen, but just in case
+		if (smallestEdge == -1)
+		{
+			m_isValid = false;
+			return;
+		}
+
+		// add to tree, and mark visited
+		spanningTree.insert(smallestEdge);
+		visited.insert(edges[smallestEdge].vertices.first);
+		visited.insert(edges[smallestEdge].vertices.second);
+	}
+
+	// Add tree to connections
+	for (const int e : spanningTree)
+	{
+		const auto& edge = edges[e].vertices;
+		m_connections.insert({ edge.first, edge.second });
+	}
+
+	// Add extra connections
+	for (const Edge& e : edges)
+	{
+		if (m_connections.find(e.vertices) != m_connections.end())
+			continue;
+
+		const float rnd = rand() / (float)RAND_MAX;
+		if (rnd < m_extraConnectionChance)
+			m_connections.insert({ e.vertices.first, e.vertices.second });
 	}
 
 	// Connect rooms
@@ -404,7 +476,7 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 		const int minX = std::max(closestOwnRect.pos.x, closestParentRect.pos.x);
 		const int maxX = std::min(closestOwnRect.pos.x + closestOwnRect.size.x, closestParentRect.pos.x + closestParentRect.size.x) - 1;
 
-		int xpos = Random(minX, maxX);
+		int xpos = RandomInt(minX, maxX);
 
 		const int startY = std::min(closestOwnRect.pos.y + closestOwnRect.size.y, closestParentRect.pos.y + closestParentRect.size.y);
 		const int endY = std::max(closestOwnRect.pos.y, closestParentRect.pos.y);
@@ -435,7 +507,7 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 		const int minY = std::max(closestOwnRect.pos.y, closestParentRect.pos.y);
 		const int maxY = std::min(closestOwnRect.pos.y + closestOwnRect.size.y, closestParentRect.pos.y + closestParentRect.size.y) - 1;
 
-		int ypos = Random(minY, maxY);
+		int ypos = RandomInt(minY, maxY);
 		ypos = minY;
 
 		const int startX = std::min(closestOwnRect.pos.x + closestOwnRect.size.x, closestParentRect.pos.x + closestParentRect.size.x);

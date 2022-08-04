@@ -41,6 +41,7 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_outsidecorner.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_straight_left.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_straight_top.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/floor_shadow_straight_top_variation.png", 16),
 
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_variation_1.png", 16),

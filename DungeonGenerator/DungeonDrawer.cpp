@@ -6,7 +6,7 @@
 
 #include <unordered_map>
 
-inline int Random(int min, int max)
+inline int RandomInt(int min, int max)
 {
 	return rand() % (max - min + 1) + min;
 }
@@ -241,7 +241,7 @@ int DungeonDrawer::RandomTile(const Tile& tile) const
 		weightSum += option.weight;
 	}
 
-	int rnd = Random(0, weightSum - 1);
+	int rnd = RandomInt(0, weightSum - 1);
 	for (const auto& option : tile.options)
 	{
 		if (rnd < option.weight)

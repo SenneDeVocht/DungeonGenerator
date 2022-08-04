@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "GameManager.h"
 
+#include <chrono>
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Input/InputManager.h>
 
@@ -27,6 +28,15 @@ void GameManager::Update()
 
 void GameManager::Reset() const
 {
+	// Generate a new dungeon
+	const auto start = std::chrono::high_resolution_clock::now();
+
 	m_pGenerator->GenerateDungeon();
+
+	const auto end = std::chrono::high_resolution_clock::now();
+	std::cout << "Generation time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
+	std::cout << std::endl;
+
+	// Place player at start of dungeon
 	m_pPlayerMovement->SetPosition({ 0, 0 });
 }
