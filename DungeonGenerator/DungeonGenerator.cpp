@@ -112,7 +112,7 @@ void DungeonGenerator::GenerateRoom()
 		// keep generating rect until it can be added
 		do
 		{
-			const Rect& rectToConnectTo = room.rects[RandomInt(0, room.rects.size() - 1)];
+			const Rect& rectToConnectTo = room.rects[RandomInt(0, (int)room.rects.size() - 1)];
 
 			addRect.size = glm::vec2(
 				RandomInt(m_minRoomRectSize, m_maxRoomRectSize),
@@ -269,12 +269,12 @@ void DungeonGenerator::GenerateConnections()
 	// (rooms can connect to the rooms closest by)
 	std::vector<Connection> possibleConnections;
 
-	for (int i = 0; i < m_rooms.size(); i++)
+	for (size_t i = 0; i < m_rooms.size(); i++)
 	{
 		std::vector<int> closestRooms;
 		int closestDist = std::numeric_limits<int>::max();
 
-		for (int j = 0; j < m_rooms.size(); j++)
+		for (size_t j = 0; j < m_rooms.size(); j++)
 		{
 			// skip self
 			if (i == j)
@@ -293,12 +293,12 @@ void DungeonGenerator::GenerateConnections()
 
 			if (dist < closestDist)
 			{
-				closestRooms = { j };
+				closestRooms = { (int)j };
 				closestDist = dist;
 			}
 			else if (dist == closestDist)
 			{
-				closestRooms.push_back(j);
+				closestRooms.push_back((int)j);
 			}
 		}
 
@@ -309,14 +309,14 @@ void DungeonGenerator::GenerateConnections()
 				possibleConnections.begin(), possibleConnections.end(), 
 				[&](const Connection& c)
 				{
-					return c.rooms == std::make_pair(j, i);
+					return c.rooms == std::make_pair(j, (int)i);
 				}
 			);
 
 			if (pos == possibleConnections.end())
 			{
 				const float weight = glm::length(glm::vec2(m_rooms[i].bounds.pos) + glm::vec2(m_rooms[j].bounds.size) * 0.5f);
-				possibleConnections.emplace_back(Connection{ std::make_pair(i, j), weight });
+				possibleConnections.emplace_back(Connection{ std::make_pair((int)i, j), weight });
 			}
 		}
 	}
@@ -330,7 +330,7 @@ void DungeonGenerator::GenerateConnections()
 		// find closest node
 		int smallestEdge = -1;
 		float smallestWeight = std::numeric_limits<float>::max();
-		for (int j = 0; j < possibleConnections.size(); j++)
+		for (size_t j = 0; j < possibleConnections.size(); j++)
 		{
 			// skip if both nodes visited, or both nodes not visited
 			if (visited.find(possibleConnections[j].rooms.first) != visited.end() && visited.find(possibleConnections[j].rooms.second) != visited.end() ||
@@ -340,7 +340,7 @@ void DungeonGenerator::GenerateConnections()
 			if (possibleConnections[j].distance < smallestWeight)
 			{
 				smallestWeight = possibleConnections[j].distance;
-				smallestEdge = j;
+				smallestEdge = (int)j;
 			}
 		}
 
@@ -492,12 +492,12 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 void DungeonGenerator::ChooseStartAndExit()
 {
 	// find furthest distance between any two rooms
-	int maxDist = 0.0f;
+	int maxDist = 0;
 	int room1 = 0;
 	int room2 = 0;
-	for (int i = 0; i < m_rooms.size(); ++i)
+	for (size_t i = 0; i < m_rooms.size(); ++i)
 	{
-		for (int j = i + 1; j < m_rooms.size(); ++j)
+		for (size_t j = i + 1; j < m_rooms.size(); ++j)
 		{
 			auto dist2 = DistanceBetweenRects(m_rooms[i].bounds, m_rooms[j].bounds);
 			dist2.x = std::max(dist2.x, 0);
@@ -508,19 +508,19 @@ void DungeonGenerator::ChooseStartAndExit()
 			if (dist > maxDist)
 			{
 				maxDist = dist;
-				room1 = i;
-				room2 = j;
+				room1 = (int)i;
+				room2 = (int)j;
 			}
 		}
 	}
 
 	// Choose pos in random rect of room 1 to be the start
-	const Rect& startRect = m_rooms[room1].rects[RandomInt(0, m_rooms[room1].rects.size() - 1)];
+	const Rect& startRect = m_rooms[room1].rects[RandomInt(0, (int)m_rooms[room1].rects.size() - 1)];
 	m_startPos = glm::ivec2(RandomInt(startRect.pos.x, startRect.pos.x + startRect.size.x - 1),
 		RandomInt(startRect.pos.y, startRect.pos.y + startRect.size.y - 1));
 
 	// Choose pos in random rect of room 2 to be the exit
-	const Rect& exitRect = m_rooms[room2].rects[RandomInt(0, m_rooms[room2].rects.size() - 1)];
+	const Rect& exitRect = m_rooms[room2].rects[RandomInt(0, (int)m_rooms[room2].rects.size() - 1)];
 	m_exitPos = glm::ivec2(RandomInt(exitRect.pos.x, exitRect.pos.x + exitRect.size.x - 1),
 		RandomInt(exitRect.pos.y, exitRect.pos.y + exitRect.size.y - 1));
 }

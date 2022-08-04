@@ -262,4 +262,5 @@ int DungeonDrawer::RandomTile(const Tile& tile) const
 	}
 
 	assert(!"should never get here");
+	return 0;
 }
