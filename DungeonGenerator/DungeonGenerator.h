@@ -1,4 +1,5 @@
 #pragma once
+#include <random>
 #include <unordered_set>
 #include <Mage/Components/Component.h>
 
@@ -38,7 +39,7 @@ public:
 		}
 	};
 
-	void GenerateDungeon();
+	void GenerateDungeon(unsigned int seed);
 	const std::unordered_set<glm::ivec2>& GetFloorTiles() const { return m_floorTiles; }
 	const std::vector<Room>& GetRooms() const { return m_rooms; }
 	const std::unordered_set<Connection, ConnectionHash>& GetConnections() const { return m_connections; }
@@ -59,6 +60,7 @@ private:
 	bool CanAddRoomToDungeon(const Rect& bounds) const;
 	glm::ivec2 DistanceBetweenRects(const Rect& rect1, const Rect& rect2) const;
 	static Rect GetRoomBounds(const Room& room);
+	int RandomInt(int min, int max);
 
 	// Settings
 	const int m_roomAmount{ 10 };
@@ -71,6 +73,7 @@ private:
 	const float m_extraConnectionChance{ 0.5f };
 	const int m_wantedRoomsBetweenStartAndExit{ 2 };
 
+	// Output
 	std::vector<Room> m_rooms{};
 	std::unordered_set<Connection, ConnectionHash> m_connections{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
@@ -78,5 +81,7 @@ private:
 	glm::ivec2 m_exitPos{};
 	Rect m_dungeonBounds{};
 
+
 	bool m_isValid{ true };
+	std::mt19937 m_rng{};
 };

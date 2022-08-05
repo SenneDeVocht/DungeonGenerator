@@ -2,14 +2,15 @@
 #include "DungeonGenerator.h"
 
 #include <queue>
+#include <random>
 #include <Mage/Components/TilemapComponent.h>
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Scenegraph/GameObject.h>
 #include <Mage/Engine/Renderer.h>
 
-inline int RandomInt(int min, int max)
+int DungeonGenerator::RandomInt(int min, int max)
 {
-	return rand() % (max - min + 1) + min;
+	return m_rng() % (max - min + 1) + min;
 }
 
 void DungeonGenerator::RenderGizmos() const
@@ -58,10 +59,9 @@ void DungeonGenerator::RenderGizmos() const
 	}
 }
 
-void DungeonGenerator::GenerateDungeon()
+void DungeonGenerator::GenerateDungeon(unsigned int seed)
 {
-	const auto seed = rand();
-	srand(seed);
+	m_rng.seed(seed);
 	std::cout << "Seed: " << seed << std::endl;
 
 	do
@@ -273,12 +273,13 @@ void DungeonGenerator::GenerateConnections()
 	// (rooms can connect to the rooms closest by)
 	std::vector<Connection> possibleConnections;
 
-	for (size_t i = 0; i < m_rooms.size(); i++)
+	for (int i = 0; i < (int)m_rooms.size(); i++)
 	{
+		// get closest rooms
 		std::vector<int> closestRooms;
 		int closestDist = std::numeric_limits<int>::max();
 
-		for (size_t j = 0; j < m_rooms.size(); j++)
+		for (int j = 0; j < (int)m_rooms.size(); j++)
 		{
 			// skip self
 			if (i == j)
@@ -291,50 +292,51 @@ void DungeonGenerator::GenerateConnections()
 			if (dist2.x >= 0 && dist2.y >= 0)
 				continue;
 
-			// collect closest rooms
+			// collect room if closest
 			dist2 -= m_minRoomDistance;
 			const int dist = std::max(dist2.x, dist2.y);
 
 			if (dist < closestDist)
 			{
-				closestRooms = { (int)j };
+				closestRooms = { j };
 				closestDist = dist;
 			}
 			else if (dist == closestDist)
 			{
-				closestRooms.push_back((int)j);
+				closestRooms.push_back(j);
 			}
 		}
 
+		// add connections
 		for (int j : closestRooms)
 		{
 			// avoid duplicates
-			const auto pos = std::find_if(
+			const auto it = std::find_if(
 				possibleConnections.begin(), possibleConnections.end(), 
 				[&](const Connection& c)
 				{
-					return c.rooms == std::make_pair(j, (int)i);
+					return c.rooms == std::make_pair(j, i);
 				}
 			);
 
-			if (pos == possibleConnections.end())
+			if (it == possibleConnections.end())
 			{
 				const float weight = glm::length(glm::vec2(m_rooms[i].bounds.pos) + glm::vec2(m_rooms[j].bounds.size) * 0.5f);
-				possibleConnections.emplace_back(Connection{ std::make_pair((int)i, j), weight });
+				possibleConnections.emplace_back(Connection{ std::make_pair(i, j), weight });
 			}
 		}
 	}
 
 	// Create minimum spanning tree using Prim's algorithm
 	std::unordered_set<int> visited{ 0 };
-	std::unordered_set<int> spanningTree{};
+	std::unordered_set<int> spanningTreeIndices{};
 	
 	while (visited.size() < m_rooms.size())
 	{
 		// find closest node
-		int smallestEdge = -1;
+		int smallestEdgeIndex = {};
 		float smallestWeight = std::numeric_limits<float>::max();
-		for (size_t j = 0; j < possibleConnections.size(); j++)
+		for (int j = 0; j < (int)possibleConnections.size(); j++)
 		{
 			// skip if both nodes visited, or both nodes not visited
 			if (visited.find(possibleConnections[j].rooms.first) != visited.end() && visited.find(possibleConnections[j].rooms.second) != visited.end() ||
@@ -344,39 +346,38 @@ void DungeonGenerator::GenerateConnections()
 			if (possibleConnections[j].distance < smallestWeight)
 			{
 				smallestWeight = possibleConnections[j].distance;
-				smallestEdge = (int)j;
+				smallestEdgeIndex = j;
 			}
 		}
 
 		// no edge found, but not all nodes visited
 		// this will probably never happen, but just in case
-		if (smallestEdge == -1)
+		if (smallestEdgeIndex == -1)
 		{
 			m_isValid = false;
 			return;
 		}
 
-		// add to tree, and mark visited
-		spanningTree.insert(smallestEdge);
-		visited.insert(possibleConnections[smallestEdge].rooms.first);
-		visited.insert(possibleConnections[smallestEdge].rooms.second);
+		// add connection to tree, and mark rooms as visited
+		spanningTreeIndices.insert(smallestEdgeIndex);
+		visited.insert(possibleConnections[smallestEdgeIndex].rooms.first);
+		visited.insert(possibleConnections[smallestEdgeIndex].rooms.second);
 	}
 
 	// Add tree to connections
-	for (const int c : spanningTree)
+	for (const int i : spanningTreeIndices)
 	{
-		m_connections.insert(possibleConnections[c]);
+		m_connections.insert(possibleConnections[i]);
 	}
 
 	// Add extra connections
-	for (const Connection& c : possibleConnections)
+	for (Connection c : possibleConnections)
 	{
-		if (m_connections.find(c) != m_connections.end())
-			continue;
-
-		const float rnd = rand() / (float)RAND_MAX;
+		const float rnd = m_rng() / float(m_rng.max() - m_rng.min());
 		if (rnd < m_extraConnectionChance)
+		{
 			m_connections.insert(c);
+		}
 	}
 
 	// Connect rooms

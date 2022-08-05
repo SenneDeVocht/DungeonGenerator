@@ -24,8 +24,7 @@ void GameManager::Initialize()
 
 void GameManager::Update()
 {
-	if (m_pPlayerMovement->GetPosition() == m_pGenerator->GetExitPos() ||
-		Mage::ServiceLocator::GetInputManager()->CheckKeyboardKey('R', Mage::InputState::Down))
+	if (m_pPlayerMovement->GetPosition() == m_pGenerator->GetExitPos())
 	{
 		Reset();
 	}
@@ -36,7 +35,8 @@ void GameManager::Reset() const
 	// Generate a new dungeon
 	const auto start = std::chrono::high_resolution_clock::now();
 
-	m_pGenerator->GenerateDungeon();
+	const unsigned int seed = (unsigned int)time(nullptr);
+	m_pGenerator->GenerateDungeon(seed);
 
 	const auto end = std::chrono::high_resolution_clock::now();
 	std::cout << "Generation time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() << "ms" << std::endl;
