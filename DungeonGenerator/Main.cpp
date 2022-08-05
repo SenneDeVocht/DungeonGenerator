@@ -8,7 +8,7 @@ int main()
 {
     // Settings
     Mage::GameSettings::GetInstance().SetWindowSize({ 16 * 25 * 2, 16 * 25 * 2 });
-    Mage::GameSettings::GetInstance().SetWindowTitle("Test");
+    Mage::GameSettings::GetInstance().SetWindowTitle("Dungeon Generator");
 
     // Run
     Game game;

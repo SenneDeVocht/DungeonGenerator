@@ -102,7 +102,7 @@ void Game::LoadGame() const
 		#pragma region Game Manager
 
 		const auto gameManagerObject = pScene->CreateChildObject("Game Manager");
-		gameManagerObject->CreateComponent<GameManager>(dungeonGenerator, dungeonDrawer, playerMovement);
+		gameManagerObject->CreateComponent<GameManager>(dungeonGenerator, dungeonDrawer, playerMovement, cameraObject->GetTransform());
 
 		#pragma endregion
 	});

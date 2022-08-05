@@ -14,6 +14,6 @@ public:
 
 private:
 	Mage::Transform* m_pTarget;
-	float m_snappyness = 0.1f;
+	float m_snappyness = 0.05f;
 };
 

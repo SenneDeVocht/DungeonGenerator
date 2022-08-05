@@ -2,6 +2,7 @@
 #include "GameManager.h"
 
 #include <chrono>
+#include <Mage/Components/Transform.h>
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Input/InputManager.h>
 
@@ -9,10 +10,11 @@
 #include "DungeonDrawer.h"
 #include "PlayerMovement.h"
 
-GameManager::GameManager(DungeonGenerator* pGenerator, DungeonDrawer* drawer, PlayerMovement* pPlayerMovement)
+GameManager::GameManager(DungeonGenerator* pGenerator, DungeonDrawer* pDrawer, PlayerMovement* pPlayerMovement, Mage::Transform* pCameraTransform)
 	: m_pGenerator(pGenerator)
-	, m_pDrawer(drawer)
+	, m_pDrawer(pDrawer)
 	, m_pPlayerMovement(pPlayerMovement)
+	, m_pCameraTransform(pCameraTransform)
 {}
 
 void GameManager::Initialize()
@@ -22,8 +24,11 @@ void GameManager::Initialize()
 
 void GameManager::Update()
 {
-	if (m_pPlayerMovement->GetPosition() == m_pGenerator->GetExitPos())
+	if (m_pPlayerMovement->GetPosition() == m_pGenerator->GetExitPos() ||
+		Mage::ServiceLocator::GetInputManager()->CheckKeyboardKey('R', Mage::InputState::Down))
+	{
 		Reset();
+	}
 }
 
 void GameManager::Reset() const
@@ -40,6 +45,11 @@ void GameManager::Reset() const
 	// Draw the dungeon
 	m_pDrawer->DrawDungeon(m_pGenerator);
 
-	// Place player at start of dungeon
+	// Place player and camera at start of dungeon
+	// new camera position
+	const glm::vec2 newCameraPos = glm::vec2(m_pGenerator->GetStartPos()) + m_pCameraTransform->GetWorldPosition() - glm::vec2(m_pPlayerMovement->GetPosition());
+	m_pCameraTransform->SetWorldPosition(newCameraPos);
+
+	// new player position
 	m_pPlayerMovement->SetPosition(m_pGenerator->GetStartPos());
 }

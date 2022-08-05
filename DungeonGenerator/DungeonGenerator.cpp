@@ -515,49 +515,38 @@ void DungeonGenerator::ChooseStartAndExit()
 	}
 
 	// find distance on graph between all pairs of rooms
-	std::vector<std::vector<int>> distances(graph.size(), std::vector<int>(graph.size()));
+	std::vector<std::vector<int>> distances(graph.size(), std::vector<int>(graph.size(), 0));
 
 	for (int i = 0; i < graph.size(); ++i)
 	{
-		for (int j = i + 1; j < graph.size(); ++j)
+		// find shortest path between rooms using breadth first search
+		std::queue<int> q;
+		q.push(i);
+		std::unordered_set<int> visited;
+
+		while (!q.empty())
 		{
-			// find shortest path between rooms using breadth first search
-			std::queue<int> q;
-			std::unordered_set<int> visited;
-			int dist = 0;
+			const int curr = q.front();
+			q.pop();
 
-			while (!q.empty())
+			for (const auto& connectedNode : graph[curr].connectedNodes)
 			{
-				const int curr = q.front();
-				q.pop();
-
-				if (curr == j)
+				// not yet visited
+				if (visited.find(connectedNode) == visited.end())
 				{
-					distances[i][j] = dist;
-					distances[j][i] = dist;
-					break;
+					q.push(connectedNode);
+					visited.emplace(connectedNode);
+					distances[i][connectedNode] = distances[i][curr] + 1;
 				}
-
-				for (const auto& connectedNode : graph[curr].connectedNodes)
-				{
-					if (visited.find(connectedNode) == visited.end())
-					{
-						q.push(connectedNode);
-						visited.emplace(connectedNode);
-					}
-				}
-
-				++dist;
 			}
 		}
 	}
 
 	// find rooms far enough apart
-	int minDist = m_wantedRoomsBetweenStartAndExit;
+	int minDist = m_wantedRoomsBetweenStartAndExit + 1;
 	std::vector<std::pair<int, int>> pairsToConsider{};
 	while (pairsToConsider.empty())
 	{
-		pairsToConsider.clear();
 		for (int i = 0; i < graph.size(); ++i)
 		{
 			for (int j = i + 1; j < graph.size(); ++j)
