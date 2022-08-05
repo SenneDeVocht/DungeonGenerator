@@ -35,7 +35,7 @@ void GameManager::Reset() const
 	// Generate a new dungeon
 	const auto start = std::chrono::high_resolution_clock::now();
 
-	const unsigned int seed = (unsigned int)time(nullptr);
+	const unsigned int seed = rand();
 	m_pGenerator->GenerateDungeon(seed);
 
 	const auto end = std::chrono::high_resolution_clock::now();
