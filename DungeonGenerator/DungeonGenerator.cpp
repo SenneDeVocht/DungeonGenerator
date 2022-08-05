@@ -1,6 +1,7 @@
 #include "pch.h"
 #include "DungeonGenerator.h"
 
+#include <queue>
 #include <Mage/Components/TilemapComponent.h>
 #include <Mage/Engine/ServiceLocator.h>
 #include <Mage/Scenegraph/GameObject.h>
@@ -81,6 +82,8 @@ void DungeonGenerator::GenerateDungeon()
 	} while (!m_isValid);
 
 	ChooseStartAndExit();
+
+	CalculateDungeonBounds();
 }
 
 void DungeonGenerator::ClearDungeon()
@@ -88,6 +91,7 @@ void DungeonGenerator::ClearDungeon()
 	m_rooms.clear();
 	m_connections.clear();
 	m_floorTiles.clear();
+	m_dungeonBounds = Rect{ {0, 0}, {0, 0} };
 	m_isValid = true;
 }
 
@@ -491,38 +495,118 @@ void DungeonGenerator::GenerateConnection(const Room& room1, const Room& room2)
 
 void DungeonGenerator::ChooseStartAndExit()
 {
-	// find furthest distance between any two rooms
-	int maxDist = 0;
-	int room1 = 0;
-	int room2 = 0;
-	for (size_t i = 0; i < m_rooms.size(); ++i)
+	struct Node
 	{
-		for (size_t j = i + 1; j < m_rooms.size(); ++j)
+		std::vector<int> connectedNodes;
+	};
+
+	// construct easier to traverse graph of rooms
+	std::vector<Node> graph;
+
+	for (int i = 0; i < m_rooms.size(); ++i)
+	{
+		graph.emplace_back();
+	}
+
+	for (const auto& connection : m_connections)
+	{
+		graph[connection.rooms.first].connectedNodes.push_back(connection.rooms.second);
+		graph[connection.rooms.second].connectedNodes.push_back(connection.rooms.first);
+	}
+
+	// find distance on graph between all pairs of rooms
+	std::vector<std::vector<int>> distances(graph.size(), std::vector<int>(graph.size()));
+
+	for (int i = 0; i < graph.size(); ++i)
+	{
+		for (int j = i + 1; j < graph.size(); ++j)
 		{
-			auto dist2 = DistanceBetweenRects(m_rooms[i].bounds, m_rooms[j].bounds);
-			dist2.x = std::max(dist2.x, 0);
-			dist2.y = std::max(dist2.y, 0);
+			// find shortest path between rooms using breadth first search
+			std::queue<int> q;
+			std::unordered_set<int> visited;
+			int dist = 0;
 
-			const int dist = dist2.x + dist2.y;
-
-			if (dist > maxDist)
+			while (!q.empty())
 			{
-				maxDist = dist;
-				room1 = (int)i;
-				room2 = (int)j;
+				const int curr = q.front();
+				q.pop();
+
+				if (curr == j)
+				{
+					distances[i][j] = dist;
+					distances[j][i] = dist;
+					break;
+				}
+
+				for (const auto& connectedNode : graph[curr].connectedNodes)
+				{
+					if (visited.find(connectedNode) == visited.end())
+					{
+						q.push(connectedNode);
+						visited.emplace(connectedNode);
+					}
+				}
+
+				++dist;
 			}
 		}
 	}
 
+	// find rooms far enough apart
+	int minDist = m_wantedRoomsBetweenStartAndExit;
+	std::vector<std::pair<int, int>> pairsToConsider{};
+	while (pairsToConsider.empty())
+	{
+		pairsToConsider.clear();
+		for (int i = 0; i < graph.size(); ++i)
+		{
+			for (int j = i + 1; j < graph.size(); ++j)
+			{
+				if (distances[i][j] >= minDist)
+				{
+					pairsToConsider.emplace_back(i, j);
+				}
+			}
+		}
+
+		--minDist;
+	}
+
+	// choose random pair
+	std::pair<int, int> chosenRooms = pairsToConsider[RandomInt(0, (int)pairsToConsider.size() - 1)];
+	const Room& room1 = m_rooms[chosenRooms.first];
+	const Room& room2 = m_rooms[chosenRooms.second];
+
 	// Choose pos in random rect of room 1 to be the start
-	const Rect& startRect = m_rooms[room1].rects[RandomInt(0, (int)m_rooms[room1].rects.size() - 1)];
+	const Rect& startRect = room1.rects[RandomInt(0, (int)room1.rects.size() - 1)];
+
 	m_startPos = glm::ivec2(RandomInt(startRect.pos.x, startRect.pos.x + startRect.size.x - 1),
 		RandomInt(startRect.pos.y, startRect.pos.y + startRect.size.y - 1));
 
 	// Choose pos in random rect of room 2 to be the exit
-	const Rect& exitRect = m_rooms[room2].rects[RandomInt(0, (int)m_rooms[room2].rects.size() - 1)];
+	const Rect& exitRect = room2.rects[RandomInt(0, (int)room2.rects.size() - 1)];
+
 	m_exitPos = glm::ivec2(RandomInt(exitRect.pos.x, exitRect.pos.x + exitRect.size.x - 1),
 		RandomInt(exitRect.pos.y, exitRect.pos.y + exitRect.size.y - 1));
+}
+
+void DungeonGenerator::CalculateDungeonBounds()
+{
+	glm::ivec2 minPos{ std::numeric_limits<int>::max(), std::numeric_limits<int>::max() };
+	glm::ivec2 maxPos{ std::numeric_limits<int>::min(), std::numeric_limits<int>::min() };
+
+	for (const auto& room : m_rooms)
+	{
+		for (const auto& rect : room.rects)
+		{
+			minPos.x = std::min(minPos.x, rect.pos.x);
+			minPos.y = std::min(minPos.y, rect.pos.y);
+			maxPos.x = std::max(maxPos.x, rect.pos.x + rect.size.x - 1);
+			maxPos.y = std::max(maxPos.y, rect.pos.y + rect.size.y - 1);
+		}
+	}
+
+	m_dungeonBounds = Rect{ minPos, maxPos - minPos + glm::ivec2(1, 1) };
 }
 
 bool DungeonGenerator::CanAddRectToRoom(const Room& room, const Rect& rect) const

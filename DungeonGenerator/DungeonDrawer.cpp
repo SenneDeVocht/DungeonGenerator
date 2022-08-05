@@ -232,13 +232,27 @@ void DungeonDrawer::DrawDungeon(const DungeonGenerator* dungeonGenerator) const
 				{
 					m_pTilemap->SetTile(pos, RandomTile(m_roof_insidecorner_topright));
 				}
-				// else normal roof
-				else
-				{
-					m_pTilemap->SetTile(pos, RandomTile(m_roof));
-				}
 
 				break;
+			}
+		}
+	}
+
+	// add random roof tiles outside of the map
+	auto extendedBounds = dungeonGenerator->GetDungeonBounds();
+	extendedBounds.pos -= m_extraBounds;
+	extendedBounds.size += m_extraBounds * 2;
+
+	for (int x = extendedBounds.pos.x; x < extendedBounds.pos.x + extendedBounds.size.x; x++)
+	{
+		for (int y = extendedBounds.pos.y; y < extendedBounds.pos.y + extendedBounds.size.y; y++)
+		{
+			glm::ivec2 pos(x, y);
+			if (tiles.find(pos) == tiles.end())
+			{
+				const int tile = RandomTile(m_roof_variations);
+				if (tile >= 0)
+					m_pTilemap->SetTile(pos, tile);
 			}
 		}
 	}

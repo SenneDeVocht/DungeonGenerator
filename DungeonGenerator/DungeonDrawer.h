@@ -39,6 +39,8 @@ private:
 
 	Mage::TilemapComponent* m_pTilemap{};
 
+	glm::ivec2 m_extraBounds{ 13, 13 };
+
 	// TILES
 	const Tile m_floor = { {{0, 10}, {1, 1}, {2, 1}} };
 	const Tile m_floor_shadow_insidecorner_bottomleft = { 3 };
@@ -51,20 +53,20 @@ private:
 	const Tile m_wall_left = { 12 };
 	const Tile m_wall_right = { 13 };
 
-	const Tile m_roof = { 14 };
-	const Tile m_roof_insidecorner_bottomleft = { 15 };
-	const Tile m_roof_insidecorner_bottomright = { 16 };
-	const Tile m_roof_insidecorner_topleft = { 17 };
-	const Tile m_roof_insidecorner_topright = { 18 };
-	const Tile m_roof_outsidecorner_bottomleft = { 19 };
-	const Tile m_roof_outsidecorner_bottomright = { 20 };
-	const Tile m_roof_outsidecorner_topleft = { 21 };
-	const Tile m_roof_outsidecorner_topright = { 22 };
-	const Tile m_roof_straight_bottom = { 23 };
-	const Tile m_roof_straight_left = { 24 };
-	const Tile m_roof_straight_right = { 25 };
-	const Tile m_roof_straight_top = { 26 };
+	const Tile m_roof_insidecorner_bottomleft = { 14 };
+	const Tile m_roof_insidecorner_bottomright = { 15 };
+	const Tile m_roof_insidecorner_topleft = { 16 };
+	const Tile m_roof_insidecorner_topright = { 17 };
+	const Tile m_roof_outsidecorner_bottomleft = { 18 };
+	const Tile m_roof_outsidecorner_bottomright = { 19 };
+	const Tile m_roof_outsidecorner_topleft = { 20 };
+	const Tile m_roof_outsidecorner_topright = { 21 };
+	const Tile m_roof_straight_bottom = { 22 };
+	const Tile m_roof_straight_left = { 23 };
+	const Tile m_roof_straight_right = { 24 };
+	const Tile m_roof_straight_top = { 25 };
+	const Tile m_roof_variations = { {{-1, 30}, {26, 1}, {27, 1}} };
 
-	const Tile m_exit = { 27 };
+	const Tile m_exit = { 28 };
 };
 

@@ -44,6 +44,7 @@ public:
 	const std::unordered_set<Connection, ConnectionHash>& GetConnections() const { return m_connections; }
 	const glm::ivec2& GetStartPos() const { return m_startPos; }
 	const glm::ivec2& GetExitPos() const { return m_exitPos; }
+	const Rect& GetDungeonBounds() const { return m_dungeonBounds; }
 
 private:
 	void ClearDungeon();
@@ -52,6 +53,7 @@ private:
 	void GenerateConnections();
 	void GenerateConnection(const Room& room1, const Room& room2);
 	void ChooseStartAndExit();
+	void CalculateDungeonBounds();
 
 	bool CanAddRectToRoom(const Room& room, const Rect& rect) const;
 	bool CanAddRoomToDungeon(const Rect& bounds) const;
@@ -67,12 +69,14 @@ private:
 	const glm::ivec2 m_minWallSize{ 2, 3 };
 	const glm::ivec2 m_minRoomDistance{ 4, 5 };
 	const float m_extraConnectionChance{ 0.5f };
+	const int m_wantedRoomsBetweenStartAndExit{ 2 };
 
 	std::vector<Room> m_rooms{};
 	std::unordered_set<Connection, ConnectionHash> m_connections{};
 	std::unordered_set<glm::ivec2> m_floorTiles{};
 	glm::ivec2 m_startPos{};
 	glm::ivec2 m_exitPos{};
+	Rect m_dungeonBounds{};
 
 	bool m_isValid{ true };
 };

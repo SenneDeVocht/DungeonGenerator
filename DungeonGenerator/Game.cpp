@@ -49,7 +49,6 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_left.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/wall_right.png", 16),
 
-				resourceManager.LoadTexture("Sprites/DungeonTiles/roof.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_insidecorner_bottomleft.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_insidecorner_bottomright.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_insidecorner_topleft.png", 16),
@@ -62,6 +61,8 @@ void Game::LoadGame() const
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_left.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_right.png", 16),
 				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_straight_top.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_variation_1.png", 16),
+				resourceManager.LoadTexture("Sprites/DungeonTiles/roof_variation_2.png", 16),
 
 				resourceManager.LoadTexture("Sprites/DungeonTiles/exit.png", 16),
 			}
